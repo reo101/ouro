@@ -12,6 +12,16 @@ pub mod service;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
+    #[clap(flatten)]
+    pub global_args: GlobalArgs,
+
+    /// Service to manage (slskd or transmission)
+    #[command(subcommand)]
+    pub service: ServiceType,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct GlobalArgs {
     /// VPN Gateway IP (typically 10.2.0.1 for many VPNs)
     #[arg(long, default_value = "10.2.0.1")]
     pub gateway: Ipv4Addr,
@@ -19,10 +29,6 @@ pub struct Cli {
     /// VPN interface name
     #[arg(long, default_value = "proton0")]
     pub vpn_interface: String,
-
-    /// Service to manage (slskd or transmission)
-    #[command(subcommand)]
-    pub service: ServiceType,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -40,6 +46,10 @@ pub struct TransmissionArgs {
     /// Transmission RPC password
     #[arg(long)]
     pub rpc_pass: Option<String>,
+
+    /// Transmission address
+    #[arg(long)]
+    pub address: Option<String>,
 }
 
 #[tokio::main]
@@ -52,18 +62,22 @@ async fn main() -> eyre::Result<()> {
             current_ports: Ports { udp: 0, tcp: 0 },
         }),
         ServiceType::Transmission(TransmissionArgs {
-            ref rpc_user,
-            ref rpc_pass,
+            rpc_user,
+            rpc_pass,
+            address,
         }) => {
             let rpc_credentials = match (rpc_user, rpc_pass) {
-                (Some(username), Some(password)) => Some(Credentials {
-                    username: username.clone(),
-                    password: password.clone(),
-                }),
+                (Some(username), Some(password)) => Some(Credentials { username, password }),
                 _ => None,
             };
+
+            if let Some(addr) = &address {
+                info!("Using {} for transmission", addr);
+            }
+
             ServiceData::Transmission(Transmission {
                 rpc_credentials,
+                address,
                 current_ports: Ports { udp: 0, tcp: 0 },
             })
         }
@@ -79,7 +93,7 @@ async fn main() -> eyre::Result<()> {
         }
     });
 
-    service.run(&args, shutdown_rx).await?;
+    service.run(&args.global_args, shutdown_rx).await?;
 
     Ok(())
 }

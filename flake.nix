@@ -80,6 +80,14 @@
                                 RPC_PASS = lib.mkOption {
                                   type = types.str;
                                 };
+                                ADDRESS = lib.mkOption {
+                                  type = types.str;
+                                  default = "127.0.0.1:9091";
+                                  description = ''
+                                    The address and port that ouro will provide to `transmission-remote`
+                                    for it to connect to. Can be <IP>:<Port> or just <IP>.
+                                  '';
+                                };
                               };
                             };
                           };
@@ -130,7 +138,7 @@
                       ouroArgs = if ouroConfig.slskd.enable then
                         "slskd"
                       else if ouroConfig.transmission.enable then
-                        "transmission --rpc-user ${ouroConfig.transmission.RPC_USER} --rpc-pass ${ouroConfig.transmission.RPC_PASS}"
+                        "transmission --rpc-user ${ouroConfig.transmission.RPC_USER} --rpc-pass ${ouroConfig.transmission.RPC_PASS} --address ${ouroConfig.transmission.ADDRESS}"
                       else
                         throw "Either `slskd` or `transmission` need to be enabled!";
                     in {
@@ -171,7 +179,7 @@
         packages = {
           default = pkgs.rustPlatform.buildRustPackage {
             pname = "ouro";
-            version = "0.1.4";
+            version = "0.1.5";
 
             src = lib.fileset.toSource {
               root = ./.;
